@@ -6,9 +6,6 @@
 //   $birthyear=trim($_POST['birthyear']);
 //   $email=trim($_POST['email']);
 
-$birthyear='1979';
-$email='rkarhila@iki.fi';
-
 
 $dbfile="members.sqlite";
 
@@ -24,12 +21,12 @@ else {
 // Get the member data from the database:
 
 $sqlcommand = "SELECT * FROM jasenet WHERE email='$email' AND syntymvuosi=$birthyear;";
-print $sqlcommand;
+// print $sqlcommand;
 $queryres = $db->query($sqlcommand);
 $arr = $queryres->fetcharray();
 
 
-print_r($arr);
+// print_r($arr);
 
 $lastname=$arr['sukunimi'];
 $firstname=$arr['etunimi'];
@@ -37,8 +34,6 @@ $membernumber=$arr['j_id'];
 $valid=$arr['voimassa'];
 $memberrole=$arr['rooli'];
 
-
-$email='reima.karhila@aalto.fi';
 
 
 // Imagemagick script for constructing the cards:
@@ -118,10 +113,12 @@ $im->setImageCompression(Imagick::COMPRESSION_JPEG);
 $im->setImageCompressionQuality(80); 
 $im->stripImage();
 
+
+
 if (strlen($memberrole)<30) {
 			    
   // Add another page to the pdf somehow;
-
+  /*
   $page2 = new Imagick();
   $page2->setResolution( 300, 300 );
   $page2-> readImage("sivu2.pdf");
@@ -129,17 +126,21 @@ if (strlen($memberrole)<30) {
   $page2->setImageCompression(Imagick::COMPRESSION_JPEG);
   $page2->setImageCompressionQuality(80);
   $page2->stripImage();
+  */
 
-  $im->addImage($page2);
+  $page1imagefile=tempnam(sys_get_temp_dir(),"php_kortti_").".pdf";
+  $im->writeImage($page1imagefile);
+ 
+  $finalimagefile=tempnam(sys_get_temp_dir(),"php_kortti_");
+  
+  
+  shell_exec("pdfunite $page1imagefile sivu2.pdf $finalimagefile");
+  
 }
-
-  
-$imagefile=tempnam(sys_get_temp_dir(),"php_kortti_");
-
-$imagefile="tmp_kortti.pdf";
-  
-$im->writeImages($imagefile, TRUE);
-
+else {  
+  $finalimagefile=tempnam(sys_get_temp_dir(),"php_kortti_");
+  $im->writeImage($finalimagefile, TRUE);
+}
 
 print "Sahkopostia tassa lahetellaan osoitteeseen $email ... ";
 
@@ -152,7 +153,7 @@ $subject="Suomen Alppikerhon jäsenkortti / Finnish Alpine club membership card"
 $message="Jäsenkorttisi on liitteenä. Näytä se puhelimesi ruudulta tai tulosta paperille ja nauti jäseneduista!\r\n\r\n";
 $message.="Your membership card is attached. Show it on your phone or print on paper, and enjoy the benefits";
 
-$attachment = chunk_split(base64_encode(file_get_contents($imagefile))); // Encode file contents for plain text sending
+$attachment = chunk_split(base64_encode(file_get_contents($finalimagefile))); // Encode file contents for plain text sending
 $attachment_filename="Alppikerho_jasenkortti_".$firstname."_".$lastname.".pdf";
 
 
