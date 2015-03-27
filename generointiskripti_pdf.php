@@ -3,8 +3,11 @@
 <?php
 
 
-$birthyear=trim($_POST['birthyear']);
-$email=trim($_POST['email']);
+//   $birthyear=trim($_POST['birthyear']);
+//   $email=trim($_POST['email']);
+
+$birthyear='1979';
+$email='rkarhila@iki.fi';
 
 
 $dbfile="members.sqlite";
@@ -32,6 +35,10 @@ $valid=$arr['voimassa'];
 $memberrole=$arr['rooli'];
 
 
+$email='reima.karhila@aalto.fi';
+
+
+
 // Imagemagick script for constructing the cards:
 
 /* Read the tempate png */
@@ -51,7 +58,7 @@ $draw = new ImagickDraw();
 #$draw->setFillColor('#bbbbbb43'); /* Semi-transparent grey */
 $draw->setFillColor('#ffffffff'); /* Full white */
 #$draw->setFont('Calibri'); /* Not too many fonts available normally */
-$draw->setFont('Carlito'); /* Not too many fonts available normally */
+$draw->setFont('Carlito-Regular.ttf'); /* Not too many fonts available normally */
 
 $draw->setFontSize( 38 );
 
@@ -89,36 +96,46 @@ $im->annotateImage($draw, 240, 522+3*$rowheight, 0, $membernumber);
 $im->annotateImage($draw, 240, 522+4*$rowheight, 0, $valid);
 
 
-/* Load the member image */
-/* We're not doing it now! 
+/* Load the member image 
+//  We're not doing it now! 
 $faceimage= new Imagick();
 $faceimage->setResolution( 300, 300 );
 $faceimage->readImage( $faceimagefile );
 
 $faceimage->cropThumbnailImage(236,307);
 $faceimage->quantizeImage(256,Imagick::COLORSPACE_GRAY,0,0,0);
-*/
-/* Combine images and flatten */
-/*
+
+// Combine images and flatten 
+
   $im->compositeImage($faceimage, Imagick::COMPOSITE_DEFAULT, 33, 33); 
   $im->flattenImages();*/
 
 
 
-$imagefile=tempnam(sys_get_temp_dir(),"php_kortti_");
+$im->setImageCompression(Imagick::COMPRESSION_JPEG);
+$im->setImageCompressionQuality(80); 
+$im->stripImage();
 
-
-if (strlen($memberrole)<10) {
-
+if (strlen($memberrole)<30) {
+			    
   // Add another page to the pdf somehow;
 
   $page2 = new Imagick();
   $page2->setResolution( 300, 300 );
   $page2-> readImage("sivu2.pdf");
 
+  $page2->setImageCompression(Imagick::COMPRESSION_JPEG);
+  $page2->setImageCompressionQuality(80);
+  $page2->stripImage();
+
   $im->addImage($page2);
 }
 
+  
+$imagefile=tempnam(sys_get_temp_dir(),"php_kortti_");
+
+$imagefile="tmp_kortti.pdf";
+  
 $im->writeImages($imagefile, TRUE);
 
 
@@ -189,10 +206,12 @@ $message_string .= "\r\n\r\n";
 $message_string .= '--' . $mime_boundary . '--';
  
  
-mail( $email, $subject, $message_string, $headers_string );
+// mail( $email, $subject, $message_string, $headers_string );
  
 print "<br>Noin, sinne l&auml;hti.";
-					 
+
+
+    
 ?>
 </body>
 </html>
