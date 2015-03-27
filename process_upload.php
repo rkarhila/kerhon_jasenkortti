@@ -1,10 +1,75 @@
+
 <?php
+
+// Implement supersimple username and password check!
+
+require_once 'passwords.php';
+
+
+if ($_POST['username'] != $username) {
+  echo "Username and password do not match";
+  exit(0);
+}
+else if ($_POST['password'] != $password) {
+  echo "Username and password do not match";
+  exit(0);
+}
+
+
+
+echo '
+<html>
+<meta http-equiv="Content-Type" content="text/html;charset=UTF-8"> 
+<body>';
+   
+echo "Initialising database ..." .PHP_EOL;
+
+
+$dbfile="members.sqlite";
+
+if (!file_exists($dbfile)) {
+
+  $db = new SQLite3($dbfile);
+  $db->exec("pragma synchronous = off;");
+  $sqlcommand="BEGIN TRANSACTION;
+
+CREATE TABLE jasenet
+(
+   j_id INTEGER PRIMARY KEY AUTOINCREMENT,
+   sukunimi TEXT NOT NULL,
+   etunimi TEXT NOT NULL,
+   email TEXT NOT NULL,
+   syntymvuosi INTEGER NOT NULL,
+   voimassa TEXT,
+   rooli TEXT NOT NULL
+);";
+
+  $sqlcommand.="COMMIT;";
+  print "<pre>$sqlcommand </pre>";
+  $dbcreation = $db->exec($sqlcommand);
+  if ($dbcreation) {
+    print "<br>Database initialised.".PHP_EOL;
+    //exit (0);
+  } else
+    {
+      print "<br>Initialising DB did not go like in Stromsso";
+    }
+}
+else {
+  $db = new SQLite3($dbfile);
+  $db->exec("pragma synchronous = off;");
+  
+}
+
+
+// Upload handling:
+
 
 // From: http://www.w3schools.com/php/php_file_upload.asp
 
 $filebasename = basename($_FILES["fileToUpload"]["name"]);
 
-print "$filebasename<br><br>";
+print "<br><br>Let's work with $filebasename<br><br>";
 
 $target_file = "Entities-032415.xls";
 
@@ -65,15 +130,77 @@ $excelReader = PHPExcel_IOFactory::createReader($inputFileType);
 $excelReader->setReadDataOnly();
  
 //load only certain sheets from the file
-$loadSheets = array('Sheet1');
-$excelReader->setLoadSheetsOnly($loadSheets);
+// $loadSheets = array('Sheet1');
+//$excelReader->setLoadSheetsOnly($loadSheets);
  
 //the default behavior is to load all sheets
 $excelReader->setLoadAllSheets();
 
 
 
-$excelObj = $excelReader->load($fileName);
+$objPHPExcel = $excelReader->load($fileName);
+
+
+//
+// From https://github.com/PHPOffice/PHPExcel/blob/develop/Documentation/\
+// markdown/Overview/07-Accessing-Cells.md
+//
+$objWorksheet = $objPHPExcel->getActiveSheet();
+
+echo 'Adding new data to database'. PHP_EOL;
+//echo '<table>' . PHP_EOL;
+
+$sqlcommand="BEGIN TRANSACTION;";
+
+foreach ($objWorksheet->getRowIterator() as $row) {
+  
+  //  echo '<tr>' . PHP_EOL;
+  $cellIterator = $row->getCellIterator();
+  $cellIterator->setIterateOnlyExistingCells(FALSE); // This loops through all cells,
+                                                     //    even if a cell value is not set.
+                                                     // By default, only cells that have a value 
+                                                     //    set will be iterated.
+
+  $memberobj=Array();
+  foreach ($cellIterator as $cell) {
+    $memberobj[$cell->getColumn()]=$cell->getValue();    
+    //echo '<td>' . 
+    //  $cell->getValue() . 
+    //  '</td>' . PHP_EOL;
+  }
+  $memberobj['E']=substr($memberobj['E'],0,4);
+
+  if ($memberobj['F'] != null && $memberobj['C'] != null && is_numeric($memberobj['E'])) {
+    $sqlcommand.="INSERT INTO jasenet (j_id,sukunimi, etunimi, email, syntymvuosi,voimassa,rooli) VALUES ( ".
+      "'".$memberobj['A']."',".  // id
+      "'".$memberobj['B']."',".  // sukunimi
+      "'".$memberobj['C']."',".  // etunimi
+      "'".$memberobj['D']."',".  // email
+      $memberobj['E'].",".  // syntymvuos
+      "'".$memberobj['F']."',".  // voimassa
+      "'".$memberobj['G']."\"');\n"; // rooli
+
+  }
+
+  //  echo '</tr>' . PHP_EOL;
+
+}
+//echo '</table>' . PHP_EOL;
+
+$sqlcommand.="COMMIT;\n";
+print "<pre>$sqlcommand </pre>";
+$dbadd=$db->exec($sqlcommand);
+
+if (!$dbadd) {
+  print "something went wrong in adding to database<br>".PHP_EOL;
+}
+
+
+
+
+
+
+/*
 
 
 $rows = $excelObj->getActiveSheet()->getRowIterator((1));
@@ -112,8 +239,11 @@ print "</pre>";
 // $objWriter->save('php://output');
 
 
-
+*/
 
 				       
 
 ?> 
+
+
+</body></html>

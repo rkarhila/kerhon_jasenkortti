@@ -1,19 +1,38 @@
+<html>
+<body>
 <?php
 
 
-#$lastname=$memberinfo['lastname'];
-#$firstname=$memberinfo['firstname'];
-#$membernumber=$memberinfo['membernumber'];
+$birthyear=trim($_POST['birthyear']);
+$email=trim($_POST['email']);
 
-$lastname="Wunderbaum-Möttönen-Mikkola";
-$firstname="Hermanni";
-$birthyear="3079";
-$membernumber="100001";
-$valid="31.3.2016";
 
-$faceimagefile="hermanni_naama.jpg";
+$dbfile="members.sqlite";
 
-# Imagemagick script for constructing the cards:
+if (!file_exists($dbfile)) {
+  echo "Jotain vikaa tietokannassa. Ilmoitathan j&auml;senvastaaville (jasen@alppikerho.fi) jos vika jatkuu.<br>";
+  exit(0);
+}
+else {
+  $db = new SQLite3($dbfile);
+  $db->exec("pragma synchronous = off;");
+}
+
+// Get the member data from the database:
+
+$sqlcommand = "SELECT * FROM jasenet WHERE email='$email' AND syntymvuosi=$birthyear;";
+$queryres = $db->query($sqlcommand);
+$arr = $queryres->fetcharray();
+
+
+$lastname=$arr['sukunimi'];
+$firstname=$arr['etunimi'];
+$membernumber=$arr['j_id'];
+$valid=$arr['voimassa'];
+$memberrole=$arr['rooli'];
+
+
+// Imagemagick script for constructing the cards:
 
 /* Read the tempate png */
 /* 150dpi should be enough for printing full-color images */
@@ -71,51 +90,109 @@ $im->annotateImage($draw, 240, 522+4*$rowheight, 0, $valid);
 
 
 /* Load the member image */
+/* We're not doing it now! 
 $faceimage= new Imagick();
 $faceimage->setResolution( 300, 300 );
 $faceimage->readImage( $faceimagefile );
 
 $faceimage->cropThumbnailImage(236,307);
 $faceimage->quantizeImage(256,Imagick::COLORSPACE_GRAY,0,0,0);
-
+*/
 /* Combine images and flatten */
-
-$im->compositeImage($faceimage, Imagick::COMPOSITE_DEFAULT, 33, 33); 
-$im->flattenImages();
-
-
-
-/* Load the member info layout and club logos etc */
-/* Set font properties for membership info*/
+/*
+  $im->compositeImage($faceimage, Imagick::COMPOSITE_DEFAULT, 33, 33); 
+  $im->flattenImages();*/
 
 
 
-/* Give image a format */
-#$im->setImageFormat('png');
+$imagefile=tempnam(sys_get_temp_dir(),"php_kortti_");
 
 
+if (strlen($memberrole)<10) {
 
-/* We'll want the right dimensions for the paper, and for that 
-we'll use a pregenerated empty business card size pdf: */
+  // Add another page to the pdf somehow;
 
-#$pdf = new Imagick();
-#$pdf->setResolution( 150, 150 );
-#$pdf->readImage( "korttipohja.pdf" );
+  $page2 = new Imagick();
+  $page2->setResolution( 300, 300 );
+  $page2-> readImage("sivu2.pdf");
+
+  $im->addImage($page2);
+}
+
+$im->writeImages($imagefile, TRUE);
 
 
+print "Sahkopostia tassa lahetellaan osoitteeseen $email ... ";
 
-/* Important !! Took some googling to find this setting,
-to get the right size for printing */
+
+/* Email: */
+
+$subject="Suomen Alppikerhon jäsenkortti / Finnish Alpine club membership card";
+
+
+$message="Jäsenkorttisi on liitteenä. Näytä se puhelimesi ruudulta tai tulosta paperille ja nauti jäseneduista!\r\n\r\n";
+$message.="Your membership card is attached. Show it on your phone or print on paper, and enjoy the benefits";
+
+$attachment = chunk_split(base64_encode(file_get_contents($imagefile))); // Encode file contents for plain text sending
+$attachment_filename="Alppikerho_jasenkortti_".$firstname."_".$lastname.".pdf";
+
+
+// Define the boundray we're going to use to separate our data with.
+$mime_boundary = '==MIME_BOUNDARY_' . md5(time());
+
+// Define attachment-specific headers
+$headers['From'] = "Alppikerho <jasen@alppikerho.fi>";
+$headers['MIME-Version'] = '1.0';
+$headers['Content-Type'] = 'multipart/mixed; boundary="' . $mime_boundary . '"';
+$headers['X-Mailer'] = 'PHP/' . phpversion();  
+
  
-#$pdf->setOption('pdf:use-cropbox', 'true');
+// Convert the array of header data into a single string.
+$headers_string = '';
+foreach($headers as $header_name => $header_value) {
+if(!empty($headers_string)) {
+$headers_string .= "\r\n";
+}
+$headers_string .= $header_name . ': ' . $header_value;
+}
 
-
-/* Combine the generated png file with the template pdf */
-#$pdf->compositeImage($im, Imagick::COMPOSITE_DEFAULT, 0, 0); 
-#$pdf->setImageFormat('pdf');
-
-/* Output the image with headers */
-#header('Content-type: application/pdf');
-echo $im;
+// Message Body
+$message_string  = '--' . $mime_boundary;
+$message_string .= "\r\n";
+$message_string .= 'Content-Type: text/plain; charset="iso-8859-1"';
+$message_string .= "\r\n";
+$message_string .= 'Content-Transfer-Encoding: 7bit';
+$message_string .= "\r\n";
+$message_string .= "\r\n";
+$message_string .= $message;
+$message_string .= "\r\n";
+$message_string .= "\r\n";
+ 
+ 
+// Add attachments to message body
+ 
+$message_string .= '--' . $mime_boundary;
+$message_string .= "\r\n";
+$message_string .= 'Content-Type: application/octet-stream; name="' . $attachment_filename . '"';
+$message_string .= "\r\n";
+$message_string .= 'Content-Description: ' . $attachment_filename;
+$message_string .= "\r\n";
+ 
+$message_string .= 'Content-Disposition: attachment; filename="' . $attachment_filename . '";';;
+$message_string .= "\r\n";
+$message_string .= 'Content-Transfer-Encoding: base64';
+$message_string .= "\r\n\r\n";
+$message_string .= $attachment;
+$message_string .= "\r\n\r\n";
+ 
+// Signal end of message
+$message_string .= '--' . $mime_boundary . '--';
+ 
+ 
+mail( $email, $subject, $message_string, $headers_string );
+ 
+print "<br>Noin, sinne l&auml;hti.";
 					 
 ?>
+</body>
+</html>
