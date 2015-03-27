@@ -24,9 +24,12 @@ else {
 // Get the member data from the database:
 
 $sqlcommand = "SELECT * FROM jasenet WHERE email='$email' AND syntymvuosi=$birthyear;";
+print $sqlcommand;
 $queryres = $db->query($sqlcommand);
 $arr = $queryres->fetcharray();
 
+
+print_r($arr);
 
 $lastname=$arr['sukunimi'];
 $firstname=$arr['etunimi'];
