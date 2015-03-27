@@ -32,6 +32,7 @@ $valid=$arr['voimassa'];
 $memberrole=$arr['rooli'];
 
 
+
 // Imagemagick script for constructing the cards:
 
 /* Read the tempate png */
