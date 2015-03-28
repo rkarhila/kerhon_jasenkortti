@@ -42,7 +42,19 @@ CREATE TABLE jasenet
    syntymvuosi INTEGER NOT NULL,
    voimassa TEXT,
    rooli TEXT NOT NULL
-);";
+);
+
+CREATE TABLE loki
+(
+   l_id INTEGER PRIMARY KEY AUTOINCREMENT,
+   email TEXT NOT NULL,
+   syntymvuosi INTEGER NOT NULL,
+   timestamp TEXT NOT NULL,
+   remote_addr TEXT NOT NULL,
+   http_x_forwarded TEXT NOT NULL,
+   onnistui INTEGER NOT NULL
+);
+";
 
   $sqlcommand.="COMMIT;";
   print "<pre>$sqlcommand </pre>";
@@ -148,13 +160,13 @@ $objPHPExcel = $excelReader->load($fileName);
 $objWorksheet = $objPHPExcel->getActiveSheet();
 
 echo 'Adding new data to database'. PHP_EOL;
-//echo '<table>' . PHP_EOL;
+echo '<pre>'.PHP_EOL;
 
 $sqlcommand="BEGIN TRANSACTION;";
 
 foreach ($objWorksheet->getRowIterator() as $row) {
   
-  //  echo '<tr>' . PHP_EOL;
+
   $cellIterator = $row->getCellIterator();
   $cellIterator->setIterateOnlyExistingCells(FALSE); // This loops through all cells,
                                                      //    even if a cell value is not set.
@@ -164,35 +176,71 @@ foreach ($objWorksheet->getRowIterator() as $row) {
   $memberobj=Array();
   foreach ($cellIterator as $cell) {
     $memberobj[$cell->getColumn()]=$cell->getValue();    
-    //echo '<td>' . 
-    //  $cell->getValue() . 
-    //  '</td>' . PHP_EOL;
   }
   $memberobj['E']=substr($memberobj['E'],0,4);
 
-  if ($memberobj['F'] != null && $memberobj['C'] != null && is_numeric($memberobj['E'])) {
-    $sqlcommand.="INSERT INTO jasenet (j_id,sukunimi, etunimi, email, syntymvuosi,voimassa,rooli) VALUES ( ".
-      "'".$memberobj['A']."',".  // id
-      "'".$memberobj['B']."',".  // sukunimi
-      "'".$memberobj['C']."',".  // etunimi
-      "'".$memberobj['D']."',".  // email
-      $memberobj['E'].",".  // syntymvuos
-      "'".$memberobj['F']."',".  // voimassa
-      "'".$memberobj['G']."\"');\n"; // rooli
 
+  if ($memberobj['D'] == null) {
+    print "Jasenen ".$memberobj['A']." (".$memberobj['B'].") sähköpostiosoitetta ei ole määritelty. Ei lisätä kantaan.\n".PHP_EOL;
   }
 
-  //  echo '</tr>' . PHP_EOL;
+  elseif ($memberobj['F'] == null) {
+    print "Jasenen ".$memberobj['A']." (".$memberobj['B'].") kortin voimassaoloaikaa ei ole määritelty. Lisätään silti.".PHP_EOL;
+  }
+
+
+
+  if ($memberobj['D'] != null && is_numeric($memberobj['E'])) {
+
+    if ($db->querySingle("SELECT count(*) FROM jasenet WHERE j_id=".$memberobj['A'].";") > 0) {
+      print "Jasen ".$memberobj['A']." (".$memberobj['B'].") on jo kannassa - Päivitetään tiedot: ".$memberobj['A'].",".  // id
+	"'".$memberobj['B']."',".  // sukunimi
+	"'".$memberobj['C']."',".  // etunimi
+	"'".$memberobj['D']."',".  // email
+	$memberobj['E'].",".  // syntymvuos
+	"'".$memberobj['F']."',".  // voimassa
+	"'".$memberobj['G']."\n".PHP_EOL;
+
+      $sqlcommand.="UPDATE jasenet SET " .
+	"sukunimi='".$memberobj['B']."', " .
+	"etunimi='".$memberobj['C']."', " .
+	"email='".$memberobj['D']."', " .
+	"syntymvuosi=".$memberobj['E'].", " .
+	"voimassa='".$memberobj['F']."', " .
+	"rooli='".$memberobj['G']."' " .
+	"WHERE j_id=".$memberobj['A'].";";	
+    }
+    else { 
+      print "Lisätään tietokantaan ".$memberobj['A'].",".  // id
+	"'".$memberobj['B']."',".  // sukunimi
+	"'".$memberobj['C']."',".  // etunimi
+	"'".$memberobj['D']."',".  // email
+	$memberobj['E'].",".  // syntymvuos
+	"'".$memberobj['F']."',".  // voimassa
+	"'".$memberobj['G']."\n"; // rooli
+
+      $sqlcommand.="INSERT INTO jasenet (j_id,sukunimi, etunimi, email, syntymvuosi,voimassa,rooli) VALUES ( ".
+	$memberobj['A'].",".  // id
+	"'".$memberobj['B']."',".  // sukunimi
+	"'".$memberobj['C']."',".  // etunimi
+	"'".$memberobj['D']."',".  // email
+	$memberobj['E'].",".  // syntymvuos
+	"'".$memberobj['F']."',".  // voimassa
+	"'".$memberobj['G']."\"');\n"; // rooli
+    }
+  }
+
 
 }
-//echo '</table>' . PHP_EOL;
-
+echo "</pre>".PHP_EOL;
 $sqlcommand.="COMMIT;\n";
-print "<pre>$sqlcommand </pre>";
 $dbadd=$db->exec($sqlcommand);
 
 if (!$dbadd) {
-  print "something went wrong in adding to database<br>".PHP_EOL;
+  print "<font size='large' color='red'>Jokin meni pieleen kannan päivittämisessä!</font>\n".PHP_EOL;
+}
+else {
+  print "Kanta päivitetty onnistuneesti!\n".PHP_EOL;
 }
 
 
@@ -200,48 +248,6 @@ if (!$dbadd) {
 
 
 
-/*
-
-
-$rows = $excelObj->getActiveSheet()->getRowIterator((1));
-
-print "foo2";
-
-$cnt=1;
-foreach($rows as $row){
-  if ($cnt++==1) {print_r($row);};
-  //$values[] = $row->getCellFromColumn('B')->getValue();
-  //print_r ($values);
-  //print "<br>";
-  //in getCellFromColumn is the column index, lets say B
-  //getCellFromColumn($par) is a fictional function, i can't find how to get cell from a 
-  //certain column directly from the row object
-  
-}
-
-
-
-$excelObj->getActiveSheet()->toArray(null, true,true,true);
-
-
-
-
-
-print "<pre>";
-print_r ($excelObj);
-print "</pre>";
-
-
-
-// A simple way to display everything:
-
-// $objWriter = PHPExcel_IOFactory::createWriter($excelObj, 'HTML');
-// $objWriter->save('php://output');
-
-
-*/
-
-				       
 
 ?> 
 
