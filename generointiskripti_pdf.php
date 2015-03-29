@@ -1,8 +1,6 @@
 <html>
- <meta charset="UTF-8"> 
- <meta http-equiv="Content-Type" content="text/html;charset=utf-8"> 
-<body>
-<?php
+<head>
+  <?php
 
 
 
@@ -121,7 +119,7 @@ if ($db->querySingle("SELECT count(*) FROM jasenet WHERE email='$email' AND synt
 
 
   if (strpos($memberrole, "ilman") === false) {
-    print "Luoadaan kaksisivuinen j&auml;senkortti kategorialle $memberrole.<br>"; 
+    // print "Luoadaan kaksisivuinen j&auml;senkortti kategorialle $memberrole.<br>"; 
     // Add another page to the pdf somehow;
     /*
       $page2 = new Imagick();
@@ -132,25 +130,38 @@ if ($db->querySingle("SELECT count(*) FROM jasenet WHERE email='$email' AND synt
       $page2->setImageCompressionQuality(80);
       $page2->stripImage();
     */
+      
 
-    $page1imagefile=tempnam(sys_get_temp_dir(),"php_kortti_").".pdf";
-    $im->writeImage($page1imagefile);
+
+      $page1imagefile=tempnam(sys_get_temp_dir(),"php_kortti_");
+    // //  $page1imagefile="tmp_kortti1.pdf";
+      $im->writeImage($page1imagefile);
  
     $finalimagefile=tempnam(sys_get_temp_dir(),"php_kortti_");
-  
-  
-    shell_exec("pdfunite $page1imagefile sivu2.pdf $finalimagefile");
-  
+    // // $finalimagefile="tmp_kortti.pdf";
+
+    // $command="pdfunite $page1imagefile sivu2.pdf $finalimagefile";
+
+    // $command="convert  -density 300x300 -quality 80  -compress lzw  $page1imagefile sivu2.pdf $finalimagefile";
+
+    // $command="pdfjoin --outfile $finalimagefile $page1imagefile sivu2.pdf";
+
+    $command="gs -dNOPAUSE -sDEVICE=pdfwrite -sOUTPUTFILE=$finalimagefile -dBATCH $page1imagefile sivu2.pdf";
+
+    // print $command."<br>";
+  print "Generoidaan korttia ...<br>";
+  print (exec($command))."<br>";
+
   }
   else {			    
-    print "Luodaan j&auml;senkortti kategorialle $memberrole.<br>"; 
+    // print "Luodaan j&auml;senkortti kategorialle $memberrole.<br>"; 
     $finalimagefile=tempnam(sys_get_temp_dir(),"php_kortti_");
     $im->writeImage($finalimagefile, TRUE);
   }
 
 
 
-  print "Sahkopostia tassa lahetellaan osoitteeseen $email ... ";
+  // print "Sahkopostia tassa lahetellaan osoitteeseen $email ... ";
 
 
   /* Email: */
@@ -220,7 +231,7 @@ if ($db->querySingle("SELECT count(*) FROM jasenet WHERE email='$email' AND synt
   mail( $email, $subject, $message_string, $headers_string );
 
 
-  print "<br>Noin, sinne l&auml;hti.";
+  // print "<br>Noin, sinne l&auml;hti.";
   
   $timestamp = date('Y-m-d h:i:s', time());
   $ip1=$_SERVER['REMOTE_ADDR'];
@@ -232,9 +243,14 @@ if ($db->querySingle("SELECT count(*) FROM jasenet WHERE email='$email' AND synt
   $db->exec($sqlcommand);
 
 
+  print '<meta http-equiv="refresh" content="0; url=http://alppikerho.fi/ole-hyva/">';
+  
+
 }
-else {
-  print "Antamasi osoite ($email) ja syntymävuosi ($birthyear) eivät ole rekisterissä. Tarkista tiedot ja yritä uuudelleen. Jos ei edelleenkään toimi, ota yhteyttä jäsenvastaaviin jasen@alppikerho.fi.";
+  else {
+
+  print '<meta http-equiv="refresh" content="0; url=http://alppikerho.fi/no-johan-nyt/">';
+  // print "Antamasi osoite ($email) ja syntymävuosi ($birthyear) eivät ole rekisterissä. Tarkista tiedot ja yritä uuudelleen. Jos ei edelleenkään toimi, ota yhteyttä jäsenvastaaviin jasen@alppikerho.fi.";
 
   $timestamp = date('Y-m-d h:i:s', time());
   $ip1=$_SERVER['REMOTE_ADDR'];
@@ -249,6 +265,6 @@ else {
 }
 
     
-?>
-</body>
+    ?>
+  </head>
 </html>
