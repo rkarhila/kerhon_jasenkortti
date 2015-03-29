@@ -156,7 +156,7 @@ if ($db->querySingle("SELECT count(*) FROM jasenet WHERE email='$email' AND synt
   else {			    
     // print "Luodaan j&auml;senkortti kategorialle $memberrole.<br>"; 
     $finalimagefile=tempnam(sys_get_temp_dir(),"php_kortti_");
-    $im->writeImage($finalimagefile, TRUE);
+    $im->writeImage($finalimagefile);
   }
 
 
